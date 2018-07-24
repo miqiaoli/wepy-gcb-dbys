@@ -1,0 +1,239 @@
+<template>
+<view class="page__bd bg__white page__bd_spacing">
+  <listStates :loading.sync="loading" :noMore.sync="noMoreList" :noList.sync="noList"></listStates>
+  <!-- <block wx:if="{{plasticsNewsList.length > 0}}"> -->
+  <scroll-view id="chatScrollView" scroll-y style="height: {{height}}px;" bindscroll="scroll" bindscrolltoupper="upper" scroll-top="{{scrollTop}}" scroll-into-view="{{toView}}">
+    <view class="margin20" wx:for="{{historyList}}" wx:key="index" id="history{{index}}">
+      <view class="text-center" wx:if="{{item.time}}"> <text class="time">{{item.time}}</text> </view>
+      <view class="weui-flex">
+        <view class="avatar">
+          <image class="avatar" mode="widthFix" src="/images/icon/icon-fish-avatar.png" />
+        </view>
+        <view class="weui-flex__item">
+          <view class="content weui-flex">
+            <view class="triangle-left"></view>
+            <view class="box">{{item.message}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="margin20" wx:for="{{list}}" wx:key="index" id="item{{index}}">
+      <view class="weui-flex">
+        <view class="avatar">
+          <image class="avatar" mode="widthFix" src="/images/icon/icon-fish-avatar.png" />
+        </view>
+        <view class="weui-flex__item">
+          <view class="content weui-flex">
+            <view class="triangle-left"></view>
+            <view class="box">{{item}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+  </scroll-view>
+  <!-- </block> -->
+</view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import {
+  __getApi
+} from '../config.js'
+import base from '../mixins/base'
+import http from '../utils/Http'
+import listStates from '../components/listStates'
+
+export default class FishList extends wepy.page {
+  mixins = [base]
+  config = {
+    navigationBarTitleText: '鱼塘信息',
+    enablePullDownRefresh: true,
+    onReachBottomDistance: 100
+  }
+  data = {
+    start: 1,
+    limit: 5,
+    historyList: [],
+    list: [],
+    socketMsgQueue: ['开启监控'],
+    socketOpen: false,
+    scrollTop: '',
+    toView: '',
+    height: '',
+    noMoreList: false,
+    noList: false,
+    loading: true
+  }
+  components = {
+    listStates
+  }
+  getScrollOffset() {
+    const self = this
+    let query = wx.createSelectorQuery()
+
+    query.select('#chatScrollView').boundingClientRect(function(rects) {
+      self.scrollTop = self.scrollTop + rects.height
+      self.$apply()
+    }).exec()
+  }
+  getHistoryScrollOffset() {
+    const self = this
+    let query = wx.createSelectorQuery()
+
+    query.select('#history4').boundingClientRect(function(rects) {
+      if (rects) {
+        self.scrollTop = rects.bottom
+      }
+      self.$apply()
+    }).exec()
+  }
+  sendSocketMessage(msg) {
+    if (this.socketOpen) {
+      wepy.sendSocketMessage({
+        data: msg
+      })
+    } else {
+      this.socketMsgQueue.push(msg)
+    }
+  }
+  onSocketMessage(data) {
+    this.list = [...this.list, data]
+    this.toView = 'item' + (this.list.length - 1)
+    this.$apply()
+  }
+  getSocket() {
+    // wx.onSocketOpen(function(res) {
+    // let msg = `reply_start=${Date.parse(new Date()) / 1000}`
+    wx.sendSocketMessage({
+      data: 'reply_start'
+    })
+    // })
+    // wepy.onSocketOpen(function(res) {
+    //   console.log('WebSocket连接已打开！')
+    //   self.socketOpen = true
+    //   for (var i = 0; i < self.socketMsgQueue.length; i++) {
+    //     self.sendSocketMessage(self.socketMsgQueue[i])
+    //     console.log(self.socketMsgQueue[i])
+    //   }
+    //   self.socketMsgQueue = []
+    // })
+    let self = this
+    wepy.onSocketMessage(function(res) {
+      console.log('收到服务器内容：' + res.data)
+      self.onSocketMessage(res.data)
+    })
+    wepy.onSocketError(function(res) {
+      console.log('WebSocket连接打开失败，请检查！')
+    })
+    wepy.onSocketClose(function(res) {
+      console.log('WebSocket 已关闭！')
+    })
+  }
+  // 加载历史数据
+  async getList() {
+    // if (this.start === 1) {
+    //   this.historyList = []
+    // }
+    const res = await http.get(__getApi._getFishPondList, {
+      firsTime: this.firsTime,
+      page_id: this.start,
+      page_limit: this.limit
+    })
+
+    this.loading = false
+    if (res.false) return
+    if (res.data.list.length === 0) {
+      this.noList = true
+    }
+    if (this.start === 1) {
+      this.historyList = res.data.list.reverse()
+      this.maxPage = Math.ceil(res.data.count / this.limit)
+    } else {
+      this.historyList = [
+        ...(res.data.list.reverse()),
+        ...this.historyList
+      ]
+    }
+    this.$apply()
+  }
+  async onLoad() {}
+  scroll(e) {
+    // console.log(e)
+  }
+  // 加载历史消息
+  onPullDownRefresh() {
+    this.upper()
+    setTimeout(() => {
+      wx.stopPullDownRefresh()
+    }, 500)
+  }
+  upper(e) {
+    if (this.start < this.maxPage) {
+      ++this.start
+      this.getList()
+    } else {
+      this.noMoreList = true
+    }
+    // this.toView = 'history' + (this.limit - 1)
+    this.getHistoryScrollOffset()
+    this.$apply()
+  }
+  async onShow() {
+    this.firsTime = Date.parse(new Date()) / 1000
+    await this.getList()
+    let system = await wepy.getSystemInfo()
+    this.height = system.windowHeight - 10
+    this.getScrollOffset()
+    this.getSocket()
+    this.$apply()
+  }
+  onHide() {
+    this.list = []
+    this.historyList = []
+    this.start = 0
+    this.$apply()
+    wx.sendSocketMessage({
+      data: 'reply_end'
+    })
+  }
+}
+</script>
+
+<style lang="css">
+.margin20 {
+  margin-bottom: 20rpx;
+}
+.avatar {
+  width: 72rpx;
+  height: 72rpx;
+}
+.triangle-left {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 12rpx solid transparent;
+  border-right: 24rpx solid #ecf2fe;
+  border-bottom: 12rpx solid transparent;
+  margin-top: 32rpx;
+}
+.box {
+  display: inline-block;
+  background:rgba(17,91,237,0.08);
+  border-radius:8rpx;
+  margin-top: 10rpx;
+  padding: 6rpx 22rpx;
+  font-size: 32rpx;
+}
+.time {
+  display: inline-block;
+  background: #cecece;
+  margin: 40rpx auto 28rpx;
+  color: #fff;
+  font-size: 24rpx;
+  border-radius: 6rpx;
+  padding: 0 24rpx;
+}
+</style>

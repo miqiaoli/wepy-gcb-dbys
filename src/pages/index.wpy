@@ -1,0 +1,409 @@
+<template>
+  <view class="page page__bd_spacing">
+    <view class="company">
+      <view class="weui-flex flex-align-center">
+        <view class="weui-flex__item">
+          <SearchBar :placeholder="placeholder" @childFn.user="parentSearch"></SearchBar>
+        </view>
+      </view>
+      <view class="pic">
+        <image mode="widthFix" src="/images/company-list.png"></image>
+      </view>
+      <view class="choose">
+        <view class="weui-flex priduct-filter page__bd_spacing">
+          <view class="col-width">
+            <picker class="inline-block" mode="selector" bindchange="companyTypeChange" value="{{index}}" range="{{companyType}}">
+              <view class="picker">
+                {{companyType[index]}}
+                <text class="arrow-down"></text>
+              </view>
+            </picker>
+          </view>
+          <view class="col-width picker weui-flex__item weui-media-box__title" bindtap="risePicker">
+            <block wx:if="{{ chooseCitys }}">{{chooseCitys}}</block>
+            <block wx:else>地址</block>
+            <text class="arrow-down"></text>
+          </view>
+          <view class="section">
+            <!-- <view class="section__title">附近</view> -->
+            <picker bindchange="bindPickerChange" value="{{sortIndex}}" range="{{sortType}}">
+              <view class="picker">
+                {{sortType[sortIndex]}}
+                <text class="arrow-down"></text>
+              </view>
+            </picker>
+          </view>
+        </view>
+      </view>
+      <!-- 区域 -->
+      <pickerView :list.sync="cityList" :firstLevel.sync="firstLevel" :secondLevel.sync="secondLevel" :thirdLevel.sync='thirdLevel' :isCity.sync="isCity"></pickerView>
+      <!-- <pickerView :list.sync="cityList" :isCity.sync="isCity"></pickerView> -->
+      <block wx:if="{{list.length > 0}}">
+        <view class="page__bd">
+          <view class="weui-panel company-list" wx:for="{{list}}" wx:key="id" wx:for-item="single">
+            <navigator class="weui-panel__bd" url="/pages/company/details?id={{single.id}}" hover-class="navigator-hover">
+              <view class="weui-media-box weui-media-box_text">
+                <view class="weui-media-box__title weui-media-box__title_in-text weui-cell__ft_in-access">{{ single.custNname }}</view>
+                <view class="weui-media-box__desc">{{ single.mainIndustry }}</view>
+                <view class="weui-media-box__info weui-flex">
+                  <view class="weui-flex__item">{{ single.place }}</view>
+                  <view class="weui-media-box__info__meta">{{ single.distance }}KM</view>
+                </view>
+              </view>
+            </navigator>
+          </view>
+        </view>
+      </block>
+      <listStates :loading.sync="loading" :noMore.sync="noMoreList" :noList.sync="noList"></listStates>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from "wepy";
+import { __getApi } from "../config.js";
+import user from "../mixins/user";
+import base from "../mixins/base";
+import http from "../utils/Http";
+import SearchBar from "../components/searchbar";
+import listStates from "../components/listStates";
+import pickerView from "../components/pickerView";
+
+export default class pageIndex extends wepy.page {
+  mixins = [user, base];
+  config = {
+    navigationBarTitleText: "早稻列表",
+    enablePullDownRefresh: true,
+    onReachBottomDistance: 100
+  };
+  components = {
+    pickerView,
+    SearchBar,
+    listStates
+  };
+  data = {
+    placeholder: "搜索信息",
+    companyType: ["全部", "非生产加工", "生产加工"],
+    index: 2,
+    cityValue: [0, 0, 0],
+    chooseCitys: "",
+    chooseCitysNum: [],
+    customItem: "全部",
+    count: "",
+    /** 多少条数据 */
+    allCity: [
+      {
+        value: "",
+        label: "全部",
+        children: [
+          {
+            value: "",
+            label: "全部",
+            children: [
+              {
+                value: "",
+                label: "全部"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    isCity: true,
+    list: "", // 数据列表
+    provices: [],
+    urban: [],
+    area: [],
+    provicesNum: "",
+    urbanNum: "",
+    areaNum: "",
+    businessModel: 1, // 经营模式
+    enterplace: null, // 搜索区域
+    name: "", // 搜索词
+    token_access: "",
+    start: 1,
+    limit: 15,
+    noMoreList: false,
+    noList: false,
+    loading: true,
+    sortType: ["智能排序", "距离优先"],
+    sortIndex: 1,
+    level: "dis",
+    latitude: "",
+    longitude: "",
+    cityList: [],
+    firstLevel: [],
+    secondLevel: [],
+    thirdLevel: []
+  };
+  events = {
+    eventName: (p, $event) => {
+      const firstName = this.cityList[p[0]].label;
+      this.provicesNum = this.cityList[p[0]].value;
+      const secondName = this.cityList[p[0]].children[p[1]].label;
+      this.urbanNum = this.cityList[p[0]].children[p[1]].value;
+      const thirdName = this.isUndefined(p[2])
+        ? ""
+        : this.cityList[p[0]].children[p[1]].children[p[2]].label;
+      this.areaNum = this.cityList[p[0]].children[p[1]].children[p[2]].value;
+      this.chooseCitys = firstName + secondName + thirdName;
+      this.start = 1;
+      this.getList();
+      this.$apply();
+    }
+  };
+  methods = {
+    risePicker() {
+      this.isCity = false;
+      this.$apply();
+    },
+    bindPickerChange: function(e) {
+      this.sortIndex = e.detail.value;
+      this.start = 1;
+      this.list = "";
+      const levelRange = ["", "dis"];
+      this.level = levelRange[this.sortIndex];
+      this.getList();
+    },
+    parentSearch(title, evt) {
+      this.name = title;
+      this.getList();
+    }
+  };
+  // 城市数据获取
+  async getCityList() {
+    const res = await http.get(__getApi._getAllCityList);
+    if (res.false) return;
+    this.cityList = [...this.allCity, ...res.data];
+
+    const list = this.cityList;
+    let firstLevel = [];
+    let secondLevel = [];
+    let thirdLevel = [];
+
+    for (let i = 0; i < list.length; i++) {
+      firstLevel.push(list[i].label);
+    }
+
+    for (let i = 0; i < list[0].children.length; i++) {
+      secondLevel.push(list[0].children[i].label);
+    }
+
+    for (let i = 0; i < list[0].children[0].children.length; i++) {
+      thirdLevel.push(list[0].children[0].children[i].label);
+    }
+
+    this.firstLevel = firstLevel;
+    this.secondLevel = secondLevel;
+    this.thirdLevel = thirdLevel;
+    this.$apply();
+  }
+  // 公司列表第一页数据
+  async getCompanyFirstList() {
+    const that = this;
+    const res = await http.get(__getApi._getCompanyFirstList, {
+      type: 2,
+      lat: this.latitude || "",
+      lng: this.longitude || ""
+    });
+
+    this.loading = false;
+
+    if (res.false) return;
+    if (res.data.list.length === 0) {
+      this.noList = true;
+    }
+    this.list = res.data.list;
+    this.maxPage = Math.ceil(res.data.count / this.limit);
+    this.$apply();
+    wepy.stopPullDownRefresh();
+  }
+  // 公司列表数据
+  async getList() {
+    if (this.start === 1) {
+      this.list = [];
+    }
+    const that = this;
+    const res = await http.get(__getApi._getCompanyList, {
+      name: this.name,
+      page_id: this.start,
+      page_limit: this.limit,
+      businessModel: this.businessModel,
+      province: this.provicesNum,
+      city: this.urbanNum,
+      distric: this.areaNum,
+      token_access: this.token_access,
+      level: this.level,
+      lat: this.latitude || "",
+      lng: this.longitude || "",
+      sorts: []
+    });
+
+    this.loading = false;
+
+    if (res.false) return;
+    if (res.data.list.length === 0) {
+      this.noList = true;
+    }
+    if (this.start === 1) {
+      this.list = res.data.list;
+    } else {
+      this.list = [...this.list, ...res.data.list];
+    }
+    this.maxPage = Math.ceil(res.data.count / this.limit);
+    this.$apply();
+    wepy.stopPullDownRefresh();
+  }
+  //  公司模式改变
+  async companyTypeChange(e) {
+    if (!this.token_access) {
+      await this.$needLogin(function(code) {
+        if (code) {
+          that.token_access = code;
+        }
+      });
+    }
+    this.index = e.detail.value;
+    if (e.detail.value == 0) {
+      this.businessModel = "";
+    } else {
+      this.businessModel = e.detail.value - 1;
+    }
+    this.start = 1;
+    this.list = "";
+    this.getList();
+  }
+  async onLoad() {
+    this.token_access = this.$parent.globalData.token_access;
+    const that = this;
+    const res = await wepy.getLocation({
+      type: "wgs84"
+    });
+    this.latitude = res.latitude;
+    this.longitude = res.longitude;
+    await this.getCompanyFirstList();
+    await this.getCityList();
+  }
+  onPullDownRefresh() {
+    this.start = 1;
+    this.getList();
+  }
+  onReachBottom() {
+    if (this.start < this.maxPage) {
+      ++this.start;
+      this.getList();
+    } else {
+      this.noMoreList = true;
+    }
+    this.$apply();
+  }
+}
+</script>
+
+<style lang="less">
+.pic image {
+  width: 100%;
+}
+.weui-media-box__title_in-text {
+  color: #2e2e2e;
+  font-weight: bold;
+}
+.weui-media-box__desc {
+  color: #2e2e2e;
+}
+.weui-media-box__info {
+  color: #c1c1c1;
+  font-size: 24rpx;
+}
+
+.priduct-filter {
+  text-align: center;
+  padding: 20rpx 0;
+  image {
+    width: 28rpx;
+    height: 28rpx;
+  }
+}
+.col-width {
+  margin-left: 16rpx;
+  margin-right: 32rpx;
+}
+.picker {
+  font-size: 17px;
+  font-weight: bold;
+  color: #000;
+}
+.arrow-down {
+  display: inline-block;
+  vertical-align: top;
+  border-top: 4px solid #353535;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  content: "";
+  margin-top: 22rpx;
+  // margin-left: 20rpx;
+}
+.active .arrow-down {
+  border-top: 4px solid #115bed;
+}
+/*选择器*/
+.citys {
+  width: 100%;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 999999;
+}
+.citys .inner_box {
+  position: relative;
+  z-index: 999999;
+}
+.citys .header_box {
+  padding: 25rpx 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #fbf9fe;
+}
+.citys .header_box .item {
+  float: left;
+  font-size: 34rpx;
+  color: #586c94;
+  box-sizing: border-box;
+}
+.citys .header_box .l {
+  width: 25%;
+  padding-left: 25rpx;
+}
+.citys .header_box .c {
+  width: 50%;
+  text-align: center;
+}
+.citys .header_box .r {
+  width: 25%;
+  text-align: right;
+  padding-right: 25rpx;
+}
+.citys .selected {
+  height: 90rpx;
+}
+.citys .picker_box {
+  width: 100%;
+  height: 485rpx;
+  background: #fff;
+}
+.citys .picker_box picker-view-column {
+  text-align: center;
+}
+.citys .picker_box picker-view-column view {
+  line-height: 90rpx;
+}
+.layer {
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+}
+</style>

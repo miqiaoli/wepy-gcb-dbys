@@ -1,0 +1,258 @@
+<template>
+  <view wx:if="{{!isCity}}" class="citys" catchtouchmove='preventTouchMove'>
+    <view class="inner_box">
+      <view class="header_box">
+        <view class="item l" data-act="cancel" data-mold="city" bindtap="ideChoice">取消</view>
+        <view class="item c">请选择</view>
+        <view class="item r" data-act="confirm" data-mold="city" bindtap="ideChoice">确定</view>
+      </view>
+      <picker-view class="picker_box" indicator-class="selected" value="{{chooseValue}}" bindchange="cityChange">
+        <picker-view-column>
+          <view wx:for="{{firstLevel}}" wx:key='*this'>{{item}}</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view wx:for="{{secondLevel}}" wx:key='*this'>{{item}}</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view wx:for="{{thirdLevel}}" wx:key='*this'>{{item}}</view>
+        </picker-view-column>
+      </picker-view>
+    </view>
+    <view class="layer" catchtouchstart="removeLayer" data-type='isCity'></view>
+  </view>
+</template>
+
+<script>
+import wepy from "wepy";
+import base from "../mixins/base.js";
+import { __getApi } from "../config.js";
+
+export default class SearchBar extends wepy.component {
+  mixins = [base];
+  props = {
+    list: {
+      type: Object,
+      default: []
+    },
+    firstLevel: {
+      type: Object,
+      default: []
+    },
+    secondLevel: {
+      type: Object,
+      default: []
+    },
+    thirdLevel: {
+      type: Object,
+      default: []
+    },
+    isCity: {
+      type: [Boolean, String],
+      default: true,
+      twoWay: true
+    }
+  };
+
+  data = {
+    firstName: "",
+    secondName: "",
+    thirdName: "",
+    chooseValue: [0, 0, 0]
+  };
+
+  methods = {
+    preventTouchMove(e) {},
+    cityChange(e) {
+      var val = e.detail.value;
+      var t = this.chooseValue;
+      const list = this.list;
+      if (val[0] !== t[0]) {
+        var secondLevel = [];
+        var thirdLevel = [];
+        for (var i = 0; i < list[val[0]].children.length; i++) {
+          secondLevel.push(list[val[0]].children[i].label);
+        }
+        if (list[val[0]].children[0].children.length > 0) {
+          for (var i = 0; i < list[val[0]].children[0].children.length; i++) {
+            thirdLevel.push(list[val[0]].children[0].children[i].label);
+          }
+        } else {
+          // thirdLevel = ["全部"];
+          thirdLevel = '';
+        }
+
+        this.secondLevel = secondLevel;
+        this.thirdLevel = thirdLevel;
+        this.chooseValue = [val[0], 0, 0];
+        this.firstName = list[val[0]].label;
+        // this.advFilter.province_id = list[val[0]].value
+        this.secondName = list[val[0]].children[0].label;
+        this.thirdName = list[val[0]].children[0].children[0].label;
+        // this.advFilter.city_id = list[val[0]].children[0].value
+      }
+      if (val[1] !== t[1]) {
+        var thirdLevel = [];
+        if (list[val[0]].children[val[1]].children.length > 0) {
+          for (
+            var i = 0;
+            i < list[val[0]].children[val[1]].children.length;
+            i++
+          ) {
+            thirdLevel.push(list[val[0]].children[val[1]].children[i].label);
+          }
+          this.thirdLevel = thirdLevel;
+          this.chooseValue = [val[0], val[1], 0];
+          this.secondName = list[val[0]].children[val[1]].label;
+          this.thirdName = list[val[0]].children[val[1]].children[0].label;
+        } else {
+          // thirdLevel = '';
+          thirdLevel = ["全部"];
+          this.thirdLevel = thirdLevel;
+          this.chooseValue = [val[0], val[1]];
+          this.secondName = list[val[0]].children[val[1]].label;
+          this.thirdName = "全部";
+        }
+
+        // this.advFilter.city_id = list[val[0]].children[val[1]].value
+      }
+      if (!this.isUndefined(t[2]) && (val[2] != t[2])) {
+        // this.thirdLevel = this.secondLevel[val[2]];
+        this.chooseValue = val;
+        this.thirdName = list[val[0]].children[val[1]].children[val[2]].label;
+        // this.advFilter.city_id = list[val[0]].children[val[1]].value
+      }
+      this.$apply();
+    },
+    /* 确定选择 */
+    ideChoice(e) {
+      
+      this.$emit('eventName', this.chooseValue);
+      // this.cityText =
+      //   this.firstName + " " + this.secondName + " " + this.thirdName;
+      this.isCity = true;
+      // this.getProductList(this.advFilter);
+    },
+    removeLayer(e) {
+      const type = e.currentTarget.dataset.type;
+      this[type] = !this[type];
+    }
+  };
+}
+</script>
+
+<style type="less">
+/*选择器*/
+.citys {
+  width: 100%;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 999999;
+}
+.citys .inner_box {
+  position: relative;
+  z-index: 999999;
+}
+.citys .header_box {
+  padding: 25rpx 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #fbf9fe;
+}
+.citys .header_box .item {
+  float: left;
+  font-size: 34rpx;
+  color: #586c94;
+  box-sizing: border-box;
+}
+.citys .header_box .l {
+  width: 25%;
+  padding-left: 25rpx;
+}
+.citys .header_box .c {
+  width: 50%;
+  text-align: center;
+}
+.citys .header_box .r {
+  width: 25%;
+  text-align: right;
+  padding-right: 25rpx;
+}
+.citys .selected {
+  height: 90rpx;
+}
+.citys .picker_box {
+  width: 100%;
+  height: 485rpx;
+  background: #fff;
+}
+.citys .picker_box picker-view-column {
+  text-align: center;
+}
+.citys .picker_box picker-view-column view {
+  line-height: 90rpx;
+}
+.layer {
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+}
+.selector {
+  width: 640rpx;
+  height: 100%;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 99;
+  .inner_box {
+    height: 100%;
+    background: #ffffff;
+    position: relative;
+    padding: 40rpx 60rpx;
+    z-index: 99;
+  }
+  .inner_btn {
+    width: 100%;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 99;
+  }
+  .top {
+    font-size: 32rpx;
+    color: #3d3d3d;
+    margin-bottom: 20rpx;
+  }
+  .input {
+    display: inline-block;
+    background: #ffffff;
+    border: 2rpx solid #9b9b9b;
+    border-radius: 8rpx;
+    width: 216rpx;
+    height: 52rpx;
+    line-height: 52rpx;
+    text-align: center;
+    font-size: 28rpx;
+    margin-bottom: 20rpx;
+  }
+  .input.active {
+    border-color: #115bed;
+    color: #115bed;
+  }
+  .interval-line {
+    height: 52rpx;
+    vertical-align: top;
+    margin: 0 20rpx;
+  }
+  .module-box {
+    margin-bottom: 30rpx;
+  }
+  button {
+    border-radius: 0;
+  }
+}
+</style>

@@ -1,0 +1,473 @@
+<template>
+<view class="company">
+  <view class="search" style="background: url('http://ogm9o9o2u.bkt.clouddn.com/company-list.png?1') no-repeat; background-size: 100% 240rpx">
+    <view class="searchbar">
+      <view class="weui-search-bar__form">
+        <view class="weui-search-bar__box">
+          <icon class="weui-icon-search_in-box" type="search" size="14"></icon>
+          <input type="text" class="weui-search-bar__input" placeholder="搜索塑料商品" bindconfirm value="{{this.name}}" />
+        </view>
+      </view>
+    </view>
+  </view>
+  <view class="choose">
+    <view class="weui-flex priduct-filter page__bd_spacing">
+      <view class="col-width active">
+        <picker class="inline-block" mode="selector" bindchange="companyTypeChange" value="{{index}}" range="{{companyType}}">
+          <view class="picker">
+            {{companyType[index]}}
+            <text class="arrow-down"></text>
+          </view>
+        </picker>
+      </view>
+      <view wx:if="{{ chooseCitys }}" class="col-width active picker" bindtap="riseModel">{{chooseCitys}}
+        <text class="arrow-down"></text>
+      </view>
+      <view wx:else class="col-width active picker" bindtap="riseModel">地址
+        <text class="arrow-down"></text>
+      </view>
+    </view>
+  </view>
+  <!-- 区域 -->
+  <view wx:if="{{!isCity}}" class="citys" catchtouchmove='preventTouchMove'>
+    <view class="inner_box">
+      <view class="header_box">
+        <view class="item l" data-act="cancel" data-mold="city" bindtap="chooseFalse">取消</view>
+        <view class="item c">请选择</view>
+        <view class="item r" data-act="confirm" data-mold="city" bindtap="chooseTrue">确定</view>
+      </view>
+      <picker-view class="picker_box" indicator-class="selected" value="{{cityValue}}" bindchange="cityChange">
+        <picker-view-column>
+          <view wx:for="{{provices}}" wx:key='*this'>{{item.label}}</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view wx:for="{{urban}}" wx:key='*this'>{{item.label}}</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view wx:for="{{area}}" wx:key='*this'>{{item.label}}</view>
+        </picker-view-column>
+      </picker-view>
+    </view>
+    <view class="layer" catchtouchstart="removeLayer" data-type='isCity'></view>
+  </view>
+  <view class="company-list">
+    <view wx:for="{{list}}" wx:key="id" wx:for-item="single">
+      <view class="single" id="{{single.id}}" bindtap="todetail">
+        <view class="name">{{ single.custNname }}</view>
+        <view class="single-flex">
+          <text class="des">{{ single.mainIndustry }}</text>
+          <!--<text class="tel"></text>-->
+        </view>
+        <text class="position">{{ single.place }}</text>
+      </view>
+    </view>
+  </view>
+  <view wx:if="{{ !loading && !list }}" class="weui-loadmore weui-loadmore_line">
+    <text class="weui-loadmore__tips">暂无数据</text>
+  </view>
+  <block wx:if="{{loading}}">
+    <view class="weui-loadmore">
+      <view class="weui-loading"></view>
+      <view class="weui-loadmore__tips">正在加载</view>
+    </view>
+  </block>
+</view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import {
+  __getApi
+} from '../../config.js'
+import http from '../../utils/Http'
+import user from '../../mixins/user'
+
+export default class companyList extends wepy.page {
+  mixins = [user]
+  config = {
+    navigationBarTitleText: '早稻列表',
+    enablePullDownRefresh: true,
+    onReachBottomDistance: 100
+  }
+  data = {
+    companyType: ['全部', '非生产加工', '生产加工'],
+    index: 2,
+    cityValue: [0, 0, 0],
+    chooseCitys: '',
+    chooseCitysNum: [],
+    customItem: '全部',
+    loading: true,
+    count: '',
+    /** 多少条数据 */
+    allCity: [{
+      value: '',
+      label: '全部',
+      children: [{
+        value: '',
+        label: '全部',
+        children: [{
+          value: '',
+          label: '全部'
+        }]
+      }]
+    }],
+    isCity: true,
+    list: '', // 数据列表
+    provices: [],
+    urban: [],
+    area: [],
+    provicesNum: '',
+    urbanNum: '',
+    areaNum: '',
+    page_id: 1, // 页数:默认第一页
+    page_limit: 15, // 一页最大条数
+    businessModel: 1, // 经营模式
+    enterplace: null, // 搜索区域
+    name: '', // 搜索词
+    token_access: ''
+  }
+  methods = {
+    preventTouchMove(e) {},
+    // 唤起城市选择
+    riseModel() {
+      this.isCity = false
+    },
+    chooseFalse() {
+      this.isCity = true
+    },
+    // 确认选择 处理
+    chooseTrue() {
+      this.isCity = true
+      if (this.cityValue[0] == 0) {
+        this.chooseCitys = ''
+      } else {
+        this.chooseCitys = this.provices[this.cityValue[0]].label + ' ' + this.urban[this.cityValue[1]].label + ' ' + this.area[this.cityValue[2]].label
+      }
+      this.chooseCitysNum = this.provices[this.cityValue[0]].value + ' ' + this.urban[this.cityValue[1]].value + ' ' + this.area[this.cityValue[2]].value
+      this.provicesNum = this.provices[this.cityValue[0]].value
+      this.urbanNum = this.urban[this.cityValue[1]].value
+      this.areaNum = this.area[this.cityValue[2]].value
+      this.page_id = 1
+      this.list = ''
+      this.getCompanyList()
+    },
+    removeLayer(e) {
+      const type = e.currentTarget.dataset.type
+      this[type] = !this[type]
+    },
+    // 城市级联数据改变处理
+    cityChange(e) {
+      let val = e.detail.value
+      var t = this.cityValue // 城市数据坐标
+      const allCity = this.allCity
+      if (val[0] !== t[0]) {
+        let urban = []
+        // 市处理
+        val[val[0], 0, 0]
+        allCity[val[0]].children.forEach((val, index) => {
+          urban.push({
+            'value': val.value,
+            'label': val.label
+          })
+        })
+        const addAll = []
+        // const addAll = [{value: '', label: '全部'}]
+        this.urban = [...addAll, ...urban]
+        this.cityValue = [e.detail.value[0], 0, 0]
+        let area = []
+        allCity[val[0]].children[0].children.forEach((val, index) => {
+          area.push({
+            'value': val.value,
+            'label': val.label
+          })
+        })
+        const allArea = [{
+          value: '',
+          label: '全部'
+        }]
+        this.area = [...allArea, ...area]
+        this.cityValue = [e.detail.value[0], 0, 0]
+        // this.cityValue = e.detail.value
+        this.$apply()
+      }
+      if (val[1] !== t[1]) {
+        let area = []
+        const addAll = [{
+          value: '',
+          label: '全部'
+        }]
+        // const addAll = []
+        val[val[0], val[1], 0]
+        // console.log( allCity[val[0]].children[val[1].children ) // 所有的市
+        allCity[val[0]].children[val[1]].children.forEach((val, index) => {
+          area.push({
+            'value': val.value,
+            'label': val.label
+          })
+        })
+        this.area = [...addAll, ...area]
+        this.cityValue = [e.detail.value[0], e.detail.value[1], 0]
+        this.$apply()
+      }
+      if (val[2] !== t[2]) {
+        this.cityValue = e.detail.value
+      }
+    },
+    // 搜索
+    async bindconfirm(e) {
+      this.loading = true
+      this.name = e.detail.value
+      this.page_id = 1
+      // this.chooseCitys = ''
+      this.list = ''
+      this.getCompanyList()
+    },
+    // 到详情
+    todetail(event) {
+      wx.navigateTo({
+        url: '/pages/company/details?id=' + event.currentTarget.id
+      })
+    }
+  }
+  // 城市数据获取
+  async getAllCity() {
+    const res = await http.get(__getApi._getAllCityList, {})
+    // this.allCity = [value: '', label: '全部', children: [value: '', label: '全部', children: [value: '', label: '全部']]]
+    this.allCity = [...this.allCity, ...res.data]
+
+    this.cityList = res.data
+    this.allCity.forEach((val, index) => {
+      this.provices.push({
+        'value': val.value,
+        'label': val.label
+      })
+    })
+    this.allCity[0].children.forEach((val, index) => {
+      this.urban.push({
+        'value': val.value,
+        'label': val.label
+      })
+    })
+    this.allCity[0].children[0].children.forEach((val, index) => {
+      this.area.push({
+        'value': val.value,
+        'label': val.label
+      })
+    })
+    this.$apply()
+  }
+  // 公司列表数据
+  async getCompanyList() {
+    this.loading = true
+    const that = this
+    if (this.page_id > 1 && !this.token_access) {
+      await this.$needLogin(function(code) {
+        if (code) {
+          that.token_access = code
+        }
+      })
+    }
+    const res = await http.get(__getApi._getCompanyList, {
+      name: this.name,
+      page_id: this.page_id,
+      page_limit: 15,
+      businessModel: this.businessModel,
+      province: this.provicesNum,
+      city: this.urbanNum,
+      distric: this.areaNum,
+      token_access: this.token_access
+    })
+    this.loading = false
+    wx.stopPullDownRefresh()
+    this.$apply()
+    if (res.false) return
+    if (res.meta.success) {
+      if (this.list) {
+        this.count = res.meta.success ? res.data.count : this.count
+        this.page_id++
+        this.list = [...this.list, ...res.data.list]
+        this.$apply()
+      } else {
+        this.count = res.data.count
+        this.page_id++
+        this.list = res.data.list
+        this.$apply()
+      }
+    }
+  }
+  //  公司模式改变
+  companyTypeChange(e) {
+    this.index = e.detail.value
+    if (e.detail.value == 0) {
+      this.businessModel = ''
+    } else {
+      this.businessModel = e.detail.value - 1
+    }
+    this.page_id = 1
+    this.list = ''
+    this.getCompanyList()
+  }
+  onLoad() {
+    this.token_access = this.$parent.globalData.token_access
+    this.getCompanyList()
+    this.getAllCity()
+  }
+  // 加载更多
+  async onReachBottom() {
+    this.loading = true
+    this.getCompanyList()
+  }
+  onPullDownRefresh() {
+    this.page_id = 1
+    this.chooseCitys = ''
+    this.provicesNum = ''
+    this.urbanNum = ''
+    this.areaNum = ''
+    this.list = ''
+    this.getCompanyList()
+  }
+}
+</script>
+
+<style lang="less">
+.company {
+    background: #fff;
+}
+.priduct-filter {
+    text-align: center;
+    padding: 20rpx 0;
+    image {
+        width: 28rpx;
+        height: 28rpx;
+    }
+}
+.col-width {
+    margin-left: 16rpx;
+    margin-right: 32rpx;
+}
+.picker {
+    font-size: 17px;
+    font-weight: bold;
+    color: #000;
+}
+.arrow-down {
+    display: inline-block;
+    vertical-align: top;
+    border-top: 4px solid #353535;
+    border-right: 4px solid transparent;
+    border-left: 4px solid transparent;
+    content: "";
+    margin-top: 22rpx;
+    // margin-left: 20rpx;
+}
+.active .arrow-down {
+    border-top: 4px solid #115bed;
+}
+.search {
+    height: 240rpx;
+    background: #ccc;
+    .weui-search-bar__form {
+        position: relative;
+        margin: 0 12px;
+        border-radius: 40rpx;
+        top: 20rpx;
+    }
+}
+.company-list {
+    margin-top: -12px;
+    .name {
+        font-size: 17px;
+        color: #000;
+    }
+    .single {
+        margin: 20rpx;
+        padding-bottom: 16rpx;
+        border-bottom: 2rpx solid #e8e7e7;
+        .single-flex {
+            display: flex;
+            .des {
+                margin-top: 12rpx;
+                margin-bottom: 6rpx;
+                flex: 1;
+                line-height: 17px;
+                font-size: 14px;
+                color: #000;
+                text-align: left;
+            }
+            .tel {
+                width: 78px;
+                line-height: 17px;
+                font-size: 14px;
+                color: #4d4d4d;
+            }
+        }
+        .position {
+            display: block;
+            font-size: 12px;
+            line-height: 17px;
+            color: #9b9b9b;
+            text-align: left;
+        }
+    }
+}
+/*选择器*/
+.citys {
+    width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 999999;
+}
+.citys .inner_box {
+    position: relative;
+    z-index: 999999;
+}
+.citys .header_box {
+    padding: 25rpx 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    background: #FBF9FE;
+}
+.citys .header_box .item {
+    float: left;
+    font-size: 34rpx;
+    color: #586C94;
+    box-sizing: border-box;
+}
+.citys .header_box .l {
+    width: 25%;
+    padding-left: 25rpx;
+}
+.citys .header_box .c {
+    width: 50%;
+    text-align: center;
+}
+.citys .header_box .r {
+    width: 25%;
+    text-align: right;
+    padding-right: 25rpx;
+}
+.citys .selected {
+    height: 90rpx;
+}
+.citys .picker_box {
+    width: 100%;
+    height: 485rpx;
+    background: #fff;
+}
+.citys .picker_box picker-view-column {
+    text-align: center;
+}
+.citys .picker_box picker-view-column view {
+    line-height: 90rpx;
+}
+.layer {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 10;
+    background: rgba(0,0,0,0.5);
+}
+</style>

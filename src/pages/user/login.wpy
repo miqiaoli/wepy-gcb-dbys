@@ -1,0 +1,129 @@
+<template>
+  <view class="login page bg__white login-bg">
+    <!-- <image class="login-bg" mode="widthFix" src="/images/login-bg.jpg"></image> -->
+    <view class="page__bd">
+      <form class="form" bindsubmit="loginBtnClick">
+
+        <view class="weui-cells weui-cells_after-title">
+          <view class="weui-cell weui-cell_input">
+            <view class="weui-cell__hd">
+              <view class="weui-label">
+                <image class="weui-label-img" src="/images/icon/username.png"></image>
+              </view>
+            </view>
+            <view class="weui-cell__bd">
+              <input class="weui-input" type="text" name='username' placeholder="请输入用户名" />
+            </view>
+          </view>
+          <view class="weui-cell weui-cell_input">
+            <view class="weui-cell__hd">
+              <view class="weui-label">
+                <image class="weui-label-img" src="/images/icon/check-password.png"></image>
+              </view>
+            </view>
+            <view class="weui-cell__bd">
+              <input class="weui-input" type="password" name="password" placeholder="请输入密码" />
+            </view>
+          </view>
+        </view>
+        <view class="item-input page__bd_spacing">
+          <button class="weui-btn from-btn" type="primary" formType="submit">登录</button>
+        </view>
+        <view class="weui-flex page__bd_spacing">
+          <navigator url="./registered?token_access={{token_access}}" open-type="reLaunch" hover-class="navigator-hover">注册新用户</navigator>
+          <view class="weui-flex__item"></view>
+          <navigator url="./forget-password?token_access={{token_access}}" open-type="reLaunch" hover-class="navigator-hover">忘记密码</navigator>
+        </view>
+      </form>
+      <view class="go-home">
+        <navigator url="/pages/index" open-type="reLaunch" hover-class="navigator-hover">
+          <image class="icon-home" src='/images/icon/icon-home.png'></image>
+        </navigator>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from "wepy";
+import base from "../../mixins/base";
+import http from "../../utils/Http";
+import { __getApi } from "../../config.js";
+
+export default class Index extends wepy.page {
+  mixins = [base];
+  config = {
+    navigationBarTitleText: "登录"
+  };
+  data = {
+    token_access: "",
+    username: "",
+    password: ""
+  };
+  async loginBtnClick(e) {
+    if (!this.required(e.detail.value.username)) {
+      this.$alert("温馨提示", "请输入用户名");
+      return;
+    }
+    if (!this.required(e.detail.value.password)) {
+      this.$alert("温馨提示", "请输入密码");
+      return;
+    }
+    const res = await http.post(__getApi._getLogin, {
+      token_access: this.token_access,
+      username: e.detail.value.username,
+      password: e.detail.value.password
+    });
+    if (res.false) return;
+    wepy.showToast({
+      title: "登录成功",
+      icon: "success",
+      duration: 1000
+    });
+    wepy.setStorage({
+      key: "token_access",
+      data: this.token_access
+    });
+    this.$parent.$updateGlobalData("token_access", this.token_access);
+    setTimeout(function() {
+      wepy.switchTab({
+        url: "../mime"
+      });
+    }, 1000);
+  }
+  async getCode() {
+    const login = await wepy.login();
+    console.log(login);
+    const res = await wepy.request({
+      url: __getApi._getPrivacyToken,
+      data: {
+        token_access: this.token_access,
+        code: login.code
+      }
+    });
+    this.token_access = res.data.data.token_access;
+    if (res.data.data.hasUnionID === 0) {
+      wepy.redirectTo({
+        url: "/pages/user/userinfo?token_access=" + this.token_access
+      });
+    }
+  }
+
+  onLoad(options) {
+    if (options.token_access) {
+      this.token_access = options.token_access;
+    } else {
+      this.token_access = this.$parent.globalData.token_access;
+      this.getCode();
+    }
+  }
+}
+</script>
+<style lang="less">
+@import "../../styles/custom/from-input.less";
+.go-home {
+  position: fixed;
+  right: 40rpx;
+  bottom: 40rpx;
+}
+</style>

@@ -1,0 +1,56 @@
+<template>
+  <view class="login page login-bg">   
+    <button class="btn" type="primary" open-type="getUserInfo" bindgetuserinfo="bindGetUserInfo">微信用户授权登录</button>
+  </view>
+</template>
+
+<script>
+import wepy from "wepy";
+import base from "../../mixins/base";
+import http from "../../utils/Http";
+import { __getApi } from "../../config.js";
+
+export default class getUserInfo extends wepy.page {
+  mixins = [base]
+  config = {
+    navigationBarTitleText: "登录授权"
+  };
+  data = {
+    token_access: ""
+  }
+  methods = {
+    async bindGetUserInfo(e) {
+      const self = this
+      const res = await wepy.request({
+        url: __getApi._getUnionID,
+        data: {
+          token_access: self.token_access,
+　　　　　 encryptedData: e.detail.encryptedData,
+　　　　　 iv: e.detail.iv
+        }
+      })
+      if (res.statusCode == 200) {
+        wepy.showToast({
+          title: "感谢你的授权",
+          icon: "success",
+          duration: 1000
+        })
+        setTimeout(() => {
+          wepy.redirectTo({
+            url: "/pages/user/login?token_access=" + this.token_access
+          })
+        }, 1000)
+      }
+    }
+  }
+  async onLoad(options) {
+    this.token_access = options.token_access
+  }
+}
+</script>
+<style lang="less">
+.btn {
+  margin: 200rpx 20rpx;
+
+}
+</style>

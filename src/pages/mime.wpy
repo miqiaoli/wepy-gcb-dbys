@@ -1,0 +1,160 @@
+<template>
+<view class="page-user">
+  <view class="weui-panel">
+    <view class="userinfo">
+      <view class="userinfo-bg">
+        <image class="userinfo-bg" src="/images/userinfo-bg.png" />
+      </view>
+      <view class="userinfo-avatar">
+        <open-data type="userAvatarUrl"></open-data>
+      </view>
+      <view class="userinfo-nickname">
+        <open-data type="userNickName"></open-data>
+      </view>
+    </view>
+  </view>
+  <view class="weui-panel">
+    <view class="weui-cells weui-cells_after-title">
+      <navigator url="/pages/mine/about-us" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+        <view class="weui-cell__bd">关于我们</view>
+        <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+      </navigator>
+    </view>
+  </view>
+  <view class="weui-panel page__bd_spacing">
+    <button class="button" type="primary" plain bindtap='makePhoneCall' data-phone='400-888-9383'>
+        <image class="phone" src="/images/icon/icon-phone_HL.png"></image>
+        400-888-9383
+    </button>
+    <button class="button" type="primary" @tap='logout'>退出登录</button>
+  </view>
+</view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import {
+  __getApi
+} from '../config.js'
+import base from '../mixins/base'
+import user from '../mixins/user'
+import http from '../utils/Http'
+
+export default class mine extends wepy.page {
+  mixins = [base, user]
+  config = {
+    navigationBarTitleText: '我的'
+  }
+  data = {
+    userInfo: {
+      nickName: '加载中...',
+      // 头像占位图
+      avatarUrl: '../images/icon/icon-avatar@2x.png'
+    },
+    token_access: ''
+  }
+  methods = {
+    makePhoneCall(e) {
+      wx.makePhoneCall({
+        phoneNumber: e.currentTarget.dataset.phone
+      })
+    },
+    async logout(e) {
+      const that = this
+      const res = await http.get(__getApi._getLogout, {
+        token_access: this.$parent.globalData.token_access
+      })
+      if (res.false) return
+      wx.clearStorage()
+      this.$parent.$updateGlobalData('token_access', '')
+      wx.showToast({
+        title: '注销登录成功',
+        icon: 'success',
+        duration: 1000
+      })
+      setTimeout(function() {
+        wepy.navigateTo({
+        url: "/pages/user/login"
+      });
+      }, 1000)
+    }
+  }
+  onLoad() {
+    this.token_access = this.$parent.globalData.token_access
+    if (!this.token_access) {
+      wepy.navigateTo({
+        url: "/pages/user/login"
+      });
+    }
+  }
+}
+</script>
+<style lang="less">
+.page-user {
+
+    @userinfoHeight: 170rpx;
+    @userinfoSpace: 8rpx;
+
+    .userinfo {
+        width: 100%;
+        height: 320rpx;
+        position: relative;
+    }
+    .userinfo-bg {
+        width: 100%;
+        height: 380rpx;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    .userinfo-bg image {
+        width: 100%;
+        height: 320rpx;
+    }
+    .userinfo-avatar {
+        width: @userinfoHeight;
+        height: @userinfoHeight;
+        position: absolute;
+        top: 25rpx;
+        left: 50%;
+        border:4rpx solid #dbb678;
+        border-radius: 50%;
+        z-index: 2;
+        transform: translateX(-50%);
+        overflow: hidden;
+    }
+
+    // space + space
+    .userinfo-info {
+        float: left;
+        line-height: 1;
+        padding: @userinfoSpace 0;
+        margin-left: 3 * @userinfoSpace;
+    }
+
+    // text + space + text
+    .userinfo-nickname {
+        position: absolute;
+        bottom: 40rpx;
+        width: 100%;
+        // font-size: 30rpx;
+        text-align: center;
+        z-index: 2;
+        color: #dbb678;
+    }
+    .userinfo-status {
+        color: #999;
+        font-size: (@userinfoHeight - 4 * @userinfoSpace) * (14 / 30);
+
+    }
+}
+.button {
+    border-radius: 16rpx;
+    margin: 20rpx;
+}
+.button .phone {
+    width: 40rpx;
+    height: 40rpx;
+    margin-right: 20rpx;
+}
+</style>

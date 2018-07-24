@@ -1,0 +1,313 @@
+<template>
+<view class="page bg__white">
+  <view class="bg1">
+    <image class="bg-avr" src="/images/Profile.png"></image>
+  </view>
+  <view class="bg2">
+    <view class="base-info">
+      <view class="header">
+        <view class="name">{{ detail.custNname }}</view>
+        <view class="bus-model">
+          <text class="bus-type">经营模式：{{ detail.businessModel }}</text>
+          <text class="bus-type"> 注册地：{{ detail.registerArea }}</text>
+        </view>
+        <view class="type">企业类型：{{ detail.companyType }}</view>
+      </view>
+      <view style="margin-left:16rpx; margin-right:12rpx;border-bottom:1px solid #e8e7e7;"></view>
+      <view class="details">
+        <view class="display-flex">
+          <view class="des-name">主营产品/服务</view>
+          <view class="des">{{ detail.mainProducts }}</view>
+        </view>
+      </view>
+      <view class="details">
+        <view class="display-flex">
+          <view class="des-name">主营行业</view>
+          <view class="des">{{ detail.mainIndustry }}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view class="page__bd_spacing">
+    <view class="weui-cells__title">企业基本信息</view>
+    <view class="weui-cells weui-cells_after-title">
+      <view class="weui-cell">
+        <view class="weui-cell__hd">成立时间</view>
+        <view class="weui-cell__bd">{{ detail.establishingTime }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">注册资本</view>
+        <view class="weui-cell__bd">{{ detail.registeredCapital }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">法定代表人</view>
+        <view class="weui-cell__bd">{{ detail.corporation }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">厂房面积</view>
+        <view class="weui-cell__bd">{{ detail.plantArea }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">年营业额</view>
+        <view class="weui-cell__bd">{{ detail.annualTurnover }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">年出口额</view>
+        <view class="weui-cell__bd">{{ detail.annualExport }}</view>
+      </view>
+    </view>
+    <view class="weui-cells__title">企业联系信息</view>
+    <view class="weui-cells weui-cells_after-title">
+      <view class="weui-cell">
+        <view class="weui-cell__hd">联系人</view>
+        <view class="weui-cell__bd">{{ detail.linkman }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">电话</view>
+        <view class="weui-cell__bd" bindtap='makePhoneCall' data-phone='{{detail.phone}}'>{{ detail.phone }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">移动电话</view>
+        <view class="weui-cell__bd" bindtap='makePhoneCall' data-phone='{{detail.mobileTelephone}}'>{{ detail.mobileTelephone }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">传真号</view>
+        <view class="weui-cell__bd" bindtap='makePhoneCall' data-phone='{{detail.facsimile}}'>{{ detail.facsimile }}</view>
+      </view>
+      <view class="weui-cell">
+        <view class="weui-cell__hd">地址</view>
+        <view class="weui-cell__bd">{{ detail.place }}</view>
+      </view>
+    </view>
+    <view class="map" wx:if="{{latitude}}">
+      <map class="map_container" id="myMap" latitude="{{latitude}}" longitude="{{longitude}}" markers="{{markers}}" bindmarkertap="markertap" />
+      <cover-view class="location" bindtap="location">
+        <cover-image class="img" src="/images/location.png" />
+      </cover-view>
+    </view>
+  </view>
+</view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import {
+  __getApi
+} from '../../config.js'
+import http from '../../utils/Http'
+
+export default class companyDetails extends wepy.page {
+  config = {
+    navigationBarTitleText: '企业信息'
+  }
+  data = {
+    detail: {},
+    token_access: '',
+    markers: '',
+    latitude: '',
+    longitude: '',
+    mapCtx: ''
+  }
+  methods = {
+    makePhoneCall(e) {
+      wx.makePhoneCall({
+        phoneNumber: e.currentTarget.dataset.phone
+      })
+    },
+    location() {
+      const that = this
+      this.mapCtx.includePoints({
+        padding: [10],
+        points: [{
+          latitude: that.latitude,
+          longitude: that.longitude
+        }]
+      })
+    }
+  }
+  // 图标点击事件
+  markertap(e) {
+    const self = this
+    wx.showActionSheet({
+      itemList: ['去这里'],
+      success: function(res) {
+        wx.openLocation({
+          latitude: self.latitude,
+          longitude: self.longitude,
+          address: self.detail.place,
+          name: 111
+        })
+      },
+      fail: function(res) {
+        console.log(res.errMsg)
+      }
+    })
+  }
+  async getDetails(id) {
+    const res = await http.get(__getApi._getCompanyDetail, {
+      token_access: this.token_access,
+      id: id
+    })
+    if (res.false) return
+    this.detail = res.data
+    if (res.data.lat) {
+      this.latitude = res.data.lat
+      this.longitude = res.data.lng
+    } else {
+      await this.getLocation()
+    }
+    this.markers = [{
+      id: '99',
+      latitude: this.latitude,
+      longitude: this.longitude,
+      title: this.detail.place
+    }]
+    this.$apply()
+  }
+  async getLocation() {
+    const res = await wepy.request({
+      url: __getApi._getBaidoLocation, //仅为示例，并非真实的接口地址
+      data: {
+        address: this.detail.place,
+        output: 'json',
+        key: 'AZWrMaCIIY2pfl75GG7j3yoGZbo57sBR'
+      },
+      header: {
+        'content-type': 'application/json' // 默认值
+      }
+    })
+    if (res.data.status === 'OK') {
+      this.longitude = res.data.result.location.lng
+      this.latitude = res.data.result.location.lat
+    } else {
+      wepy.showModal({
+        title: '提示',
+        showCancel: false,
+        content: '地图信息获取失败'
+      })
+      return
+    }
+  }
+  async onLoad(options) {
+    this.mapCtx = wx.createMapContext('myMap')
+    this.token_access = this.$parent.globalData.token_access
+    this.getDetails(options.id)
+  }
+}
+</script>
+
+<style lang="less">
+.map {
+    position: relative;
+}
+.location .img {
+    width: 60rpx;
+    height: 60rpx;
+    position: absolute;
+    left: 20rpx;
+    bottom: 20rpx;
+}
+.bg1 {
+    width: 100%;
+    height: 120rpx;
+    background: rgba(0,0,0,0.4);
+    text-align: center;
+}
+.bg-avr {
+    width: 236rpx;
+    height: 236rpx;
+    margin-top: 20rpx;
+}
+.bg2 {
+    width: 100%;
+    height: 650rpx;
+    background: linear-gradient(#4E545E, #262A30);
+    /* 标准的语法 */
+}
+.weui-cells__title {
+    margin-top: 40rpx;
+    margin-bottom: 20rpx;
+    font-size: 16px;
+    color: #0e0e0e;
+    padding: 0;
+    font-weight: bold;
+}
+.weui-cell {
+    font-size: 16px;
+    padding: 10px 0;
+}
+.weui-cell__hd {
+    width: 190rpx;
+    margin-right: 26rpx;
+    color: #B1B3B7;
+}
+.map_container {
+    margin-top: 10px;
+    height: 300px;
+    width: 100%;
+}
+.map {
+    height: 100%;
+    width: 100%;
+}
+.header {
+    padding-top: 40px;
+    width: 100%;
+    height: 116px;
+    align-items: center;
+    text-align: center;
+    color: #B1B3B7;
+    .name {
+        margin-bottom: 20rpx;
+        display: inline-flex;
+        flex-direction: row;
+        justify-content: center;
+        align-item: center;
+        font-size: 21px;
+        font-weight: bold;
+        color: #ffffff;
+    }
+    .bus-model {
+        display: flex;
+        margin: 0 54px;
+        font-size: 14px;
+        .bus-type {
+            flex: 1;
+            line-height: 20px;
+            font-size: 14px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            text-align: left;
+        }
+    }
+    .type {
+        margin-top: 10rpx;
+        font-size: 14px;
+        margin-left: 54px;
+        text-align: left;
+    }
+}
+.details {
+    .display-flex {
+        display: flex;
+        margin-left: 24rpx;
+        margin-right: 24rpx;
+        padding-top: 36rpx;
+        padding-bottom: 6rpx;
+        color: #B1B3B7;
+        .des-name {
+            width: 190rpx;
+            font-size: 28rpx;
+            font-weight: bold;
+        }
+        .des {
+            font-size: 24rpx;
+            flex: 1;
+            white-space: wrap;
+            overflow: hidden;
+
+        }
+    }
+}
+</style>

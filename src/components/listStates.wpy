@@ -1,0 +1,41 @@
+<template>
+  <view class="bg__white">
+    <block wx:if="{{noList}}">
+      <view class="loadmore-placeholder"></view>
+      <view class="weui-loadmore weui-loadmore_line">
+        <view class="weui-loadmore__tips weui-loadmore__tips_in-line">暂无信息</view>
+      </view>
+    </block>
+    <block wx:if="{{loading}}">
+      <view class="weui-loadmore">
+        <view class="weui-loading"></view>
+        <view class="weui-loadmore__tips">正在加载</view>
+      </view>
+    </block>
+    <block wx:if="{{noMore}}">
+      <view class="weui-loadmore weui-loadmore_line weui-loadmore_dot">
+        <view class="weui-loadmore__tips weui-loadmore__tips_in-line weui-loadmore__tips_in-dot"></view>
+      </view>
+    </block>
+  </view>
+</template>
+
+<script>
+import wepy from "wepy";
+export default class ListStates extends wepy.component {
+  props = {
+    loading: {
+      type: Boolean,
+      default: true
+    },
+    noMore: {
+      type: Boolean,
+      default: false
+    },
+    noList: {
+      type: Boolean,
+      default: false
+    }
+  };
+}
+</script>

@@ -1,0 +1,124 @@
+<template>
+<view class="login page bg__white">
+  <view class="page__bd page__bd_spacing">
+    <view class="weui-cells__tips">请绑定接收信息手机号</view>
+    <form bindsubmit="loginBtnClick">
+      <view class="item-input">
+        <input type="number" placeholder="请输入手机号" value="{{phone}}" name="phone" bindinput="getNameInput" />
+      </view>
+      <view class="weui-flex item-input">
+        <input type="number" placeholder="请输入短信验证码" name="yzm" bindinput="getYzmInput" />
+        <button class="weui-btn yzm-btn" type="primary" plain="true" disabled="{{yzmBtn.isShow}}" @tap="yzmClick">{{yzmBtn.msg}}</button>
+      </view>
+      <view class="item-input">
+        <button class="weui-btn" type="primary" formType="submit">绑定</button>
+      </view>
+
+    </form>
+  </view>
+</view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import base from '../../mixins/base'
+import http from '../../utils/Http'
+import {
+  __getApi
+} from '../../config.js'
+
+export default class CheckPhone extends wepy.page {
+  mixins = [base]
+  config = {
+    navigationBarTitleText: '绑定手机号'
+  }
+  data = {
+    token_access: '',
+    phone: '',
+    yzm: '',
+    yzmBtn: {
+      isShow: false,
+      msg: '获取验证码'
+    }
+  }
+  timeCountdown(time) {
+    const _self = this
+    let oTime = time
+    if (oTime === 0) {
+      _self.yzmBtn.isShow = false
+      _self.yzmBtn.msg = '获取验证码'
+      _self.$apply()
+    } else {
+      _self.yzmBtn.isShow = true
+      _self.yzmBtn.msg = oTime + 's'
+      _self.$apply()
+      oTime--
+      setTimeout(function() {
+        _self.timeCountdown(oTime)
+      }, 1000)
+    }
+  }
+  methods = {
+    getNameInput(e) {
+      this.phone = e.detail.value
+    },
+    getYzmInput(e) {
+      this.yzm = e.detail.value
+    },
+    async yzmClick() {
+      if (!this.isPhone(this.phone)) {
+        this.$alert('温馨提示', '请先填写正确的手机号')
+        return
+      }
+      const res = await http.get(__getApi._getCustomMadetelRegist, {
+        phone: this.phone,
+        token_access: this.token_access
+      })
+      if (res.false) return
+      this.timeCountdown(60)
+    },
+    loginBtnClick(e) {
+      const that = this
+      if (that.required(that.phone) && that.required(that.yzm)) {
+        http.post(__getApi._getCustomMadetelBind, {
+          token_access: that.token_access,
+          phone: that.phone,
+          smsVeriCode: that.yzm
+        })
+        wx.showToast({
+          title: '绑定成功',
+          icon: 'success',
+          duration: 1000
+        })
+        setTimeout(function() {
+          wx.navigateBack()
+        }, 1000)
+      } else {
+        that.$alert('温馨提示', '请绑定手机号')
+      }
+    }
+  }
+  onLoad(options) {
+    this.token_access = options.token_access
+    this.phone = options.phone ? options.phone : ''
+  }
+}
+</script>
+<style lang="less">
+.item-input {
+    position: relative;
+    margin-bottom: 30rpx;
+    input {
+        padding: 20rpx;
+        height: 44rpx;
+        line-height: 44rpx;
+        background-color: #efefe;
+        flex: 1;
+        border-radius: 10rpx;
+    }
+    .yzm-btn {
+        // width: 240rpx;
+        margin: 0 0 0 20rpx;
+    }
+}
+</style>
