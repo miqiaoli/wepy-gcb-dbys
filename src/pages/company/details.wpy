@@ -28,11 +28,14 @@
       </view>
     </view>
   </view>
-  <view class="page__bd_spacing">
-    <view class="weui-cells__title">企业基本信息</view>
+  <view class="page__bd">
+    <view class="weui-cells__title weui-flex">
+      <view class="weui-flex__item">企业基本信息</view>
+      <image class="collection-icon" src="{{ collect ? '/images/icon/collection_icon_HL.png' : '/images/icon/collection_icon.png' }}" bindtap="collection" />
+    </view>
     <view class="weui-cells weui-cells_after-title">
       <view class="weui-cell">
-        <view class="weui-cell__hd">成立时间</view>
+        <view class="weui-cell__bd">成立时间：</view>
         <view class="weui-cell__bd">{{ detail.establishingTime }}</view>
       </view>
       <view class="weui-cell">
@@ -101,12 +104,14 @@ export default class companyDetails extends wepy.page {
     navigationBarTitleText: '企业信息'
   }
   data = {
+    id: null,
     detail: {},
     token_access: '',
     markers: '',
     latitude: '',
     longitude: '',
-    mapCtx: ''
+    mapCtx: '',
+    collect: 0
   }
   methods = {
     makePhoneCall(e) {
@@ -123,6 +128,21 @@ export default class companyDetails extends wepy.page {
           longitude: that.longitude
         }]
       })
+    },
+    async collection() {
+      const res = await http.get(__getApi._getCollectionDo, {
+        token_access: this.token_access,
+        id: this.id,
+        status: this.collect
+      })
+      if (res.false) return
+      wx.showToast({
+        title: this.collect === 0 ? '添加收藏成功' : '取消收藏',
+        icon: 'success',
+        duration: 1000
+      })
+      this.collect = this.collect === 0 ? 1 : 0
+      this.$apply()
     }
   }
   // 图标点击事件
@@ -150,6 +170,7 @@ export default class companyDetails extends wepy.page {
     })
     if (res.false) return
     this.detail = res.data
+    this.collect = res.data.collect
     if (res.data.lat) {
       this.latitude = res.data.lat
       this.longitude = res.data.lng
@@ -191,7 +212,8 @@ export default class companyDetails extends wepy.page {
   async onLoad(options) {
     this.mapCtx = wx.createMapContext('myMap')
     this.token_access = this.$parent.globalData.token_access
-    this.getDetails(options.id)
+    this.id = options.id
+    this.getDetails(this.id)
   }
 }
 </script>
@@ -220,7 +242,7 @@ export default class companyDetails extends wepy.page {
 }
 .bg2 {
     width: 100%;
-    height: 650rpx;
+    min-height: 500rpx;
     background: linear-gradient(#4E545E, #262A30);
     /* 标准的语法 */
 }
@@ -231,15 +253,23 @@ export default class companyDetails extends wepy.page {
     color: #0e0e0e;
     padding: 0;
     font-weight: bold;
+    padding: 0 30rpx;
+}
+.weui-cells {
+    // padding: 0 30rpx;
 }
 .weui-cell {
     font-size: 16px;
-    padding: 10px 0;
+    // padding: 10px 0;
 }
 .weui-cell__hd {
     width: 190rpx;
     margin-right: 26rpx;
     color: #B1B3B7;
+}
+.collection-icon {
+    width: 52rpx;
+    height: 48rpx;
 }
 .map_container {
     margin-top: 10px;

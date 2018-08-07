@@ -10,6 +10,7 @@ export default class extends wepy.app {
     pages: [
       'pages/index',
       'pages/mime',
+      'pages/resource-list',
       'pages/fish-list',
       'pages/user/login',
       'pages/user/userinfo',
@@ -17,7 +18,8 @@ export default class extends wepy.app {
       'pages/user/forget-password',
       'pages/user/registration-agreement',
       'pages/company/list',
-      'pages/company/details'
+      'pages/company/details',
+      'pages/company/collect-list'
     ],
     window: {
       navigationBarTitleText: '第八元素',
@@ -36,6 +38,11 @@ export default class extends wepy.app {
         selectedIconPath: '/images/tabbars/home_HL.png',
         iconPath: '/images/tabbars/home.png',
         text: '首页'
+      }, {
+        pagePath: 'pages/resource-list',
+        selectedIconPath: '/images/tabbars/mime_HL.png',
+        iconPath: '/images/tabbars/mime.png',
+        text: '资源地图'
       }, {
         pagePath: 'pages/mime',
         selectedIconPath: '/images/tabbars/mime_HL.png',

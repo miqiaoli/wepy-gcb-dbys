@@ -1,4 +1,4 @@
-// const host = 'http://192.168.3.41/front' //  李成  黄页
+// const host = 'http://10.0.0.2/front' //  李成  黄页
 const host = 'https://www.otimes.info/front'
 
 const socketHost = 'wss://www.otimes.info' // 测试图片地址
@@ -71,6 +71,9 @@ export const __getApi = {
     _getCompanyList: `${host}/enter/rolist.dbys`,
     _getCompanyDetail: `${host}/enter/particulars.dbys`, //详情
     _getAllCityList: `${host}/registup/getcitis.dbys`, // 所有城市
+    _getCollectionDo: `${host}/enter/collect.dbys`, // 收藏操作
+    _getAllCollection: `${host}/enter/collectList.dbys`, // 收藏列表
+    _getSearchCollection: `${host}/enter/collectSearch.dbys`, // 收藏搜索
 
     // 鱼塘历史接口
     _getFishPondList: `https://www.otimes.info/front/wechat/polist.dbys`,

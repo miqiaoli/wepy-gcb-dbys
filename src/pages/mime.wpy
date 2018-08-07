@@ -15,6 +15,10 @@
   </view>
   <view class="weui-panel">
     <view class="weui-cells weui-cells_after-title">
+      <navigator url="/pages/company/collect-list" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+        <view class="weui-cell__bd">我的收藏</view>
+        <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+      </navigator>
       <navigator url="/pages/mine/about-us" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
         <view class="weui-cell__bd">关于我们</view>
         <view class="weui-cell__ft weui-cell__ft_in-access"></view>
@@ -74,8 +78,8 @@ export default class mine extends wepy.page {
       })
       setTimeout(function() {
         wepy.navigateTo({
-        url: "/pages/user/login"
-      });
+          url: "/pages/user/login"
+        });
       }, 1000)
     }
   }
@@ -117,7 +121,7 @@ export default class mine extends wepy.page {
         position: absolute;
         top: 25rpx;
         left: 50%;
-        border:4rpx solid #dbb678;
+        border: 4rpx solid #dbb678;
         border-radius: 50%;
         z-index: 2;
         transform: translateX(-50%);

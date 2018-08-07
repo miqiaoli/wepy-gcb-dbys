@@ -1,0 +1,154 @@
+<template>
+<view class="collection">
+  <view class="weui-flex flex-align-center">
+    <view class="weui-flex__item">
+      <SearchBar :placeholder="placeholder" @childFn.user="parentSearch"></SearchBar>
+    </view>
+  </view>
+  <!-- <view class="search">
+    <input type="text" style="height: 100%;"  maxlength="20" bindinput="searchText" bindconfirm="bindconfirm" confirm-type="search" placeholder="搜索企业" value="{{searchText}}" />
+    <icon  class="serach-icon" wx:if="{{!searchText}}" type="search" size="18"/>
+  </view> -->
+  <view class="list" wx:for="{{list}}" wx:for-item="single" wx:key="id" data-detai="{{id}}" data-index="{{index}}">
+    <view data-id="{{single.id}}" bindtap="toDetail">
+      <view class="title-flex">
+        <view class="title">{{single.custNname}}</view>
+        <view class="time"></view>
+      </view>
+      <view class="type margin-10">经营模式：{{single.businessModel}}</view>
+      <view class="des margin-10">主营行业：{{single.mainIndustry}}</view>
+      <view class="dis margin-10">企业地址：{{single.place}}</view>
+    </view>
+  </view>
+  <view wx:if="{{ count == 0 }}" class="weui-loadmore weui-loadmore_line">
+    <text class="weui-loadmore__tips">暂无数据</text>
+  </view>
+</view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import {
+  __getApi
+} from '../../config.js'
+import http from '../../utils/Http'
+import SearchBar from "../../components/searchbar";
+
+export default class collectList extends wepy.page {
+  config = {
+    navigationBarTitleText: '我的收藏',
+    enablePullDownRefresh: true,
+    onReachBottomDistance: 100
+  }
+  data = {
+    placeholder: "搜索信息",
+    token_access: '',
+    list: [],
+    page_id: 1,
+    page_limit: 5,
+    searchText: '',
+    count: 0
+  }
+  components = {
+    SearchBar
+  }
+  methods = {
+    toDetail(e) {
+      wx.navigateTo({
+        url: `./details?id=${e.currentTarget.dataset.id}`
+      })
+    },
+    // searchText(e) {
+    //   this.searchText = e.detail.value
+    // },
+
+    parentSearch(title, evt) {
+      this.searchText = title;
+      this.page_id = 1
+      this.getAllCollection();
+    }
+    // bindconfirm(e) {
+    //   this.page_id = 1
+    //   this.list = []
+    //   this.getAllCollection()
+    // }
+  }
+  async getAllCollection() {
+    if (this.page_id === 1) {
+      this.list = [];
+    }
+    wx.showLoading({
+      title: '数据加载中'
+    })
+    setTimeout(() => {
+      wx.hideLoading()
+    }, 500)
+    const res = await http.get(__getApi._getAllCollection, {
+      token_access: this.token_access,
+      page_id: this.page_id,
+      page_limit: this.page_limit,
+      name: this.searchText
+    })
+    wx.stopPullDownRefresh()
+    this.list = [...this.list, ...res.data.list]
+    this.count = res.data.count
+    this.$apply()
+  }
+  async onLoad() {
+    this.token_access = this.$parent.globalData.token_access
+    this.getAllCollection()
+    this.$apply()
+  }
+  onPullDownRefresh() {
+    this.page_id = 1
+    this.list = ''
+    this.getAllCollection()
+  }
+  onReachBottom() {
+    this.page_id++
+      this.page_id * this.page_limit - this.page_limit < this.count ? this.getAllCollection() : ''
+  }
+}
+</script>
+
+<style lang="less">
+.weui-search-bar {
+    background: none;
+}
+.collection {
+    padding: 30rpx 20rpx;
+    background: #ffffff;
+    .list {
+        margin-top: 20rpx;
+        padding: 20rpx;
+        border: 1px solid#E4E7F0;
+        font-size: 22rpx;
+        font-weight: bold;
+        color: #4A4A4A;
+        text-align: justify;
+        .title-flex {
+            display: flex;
+            justify-content: space-between;
+            .title {
+                font-size: 30rpx;
+                color: #1E1E1E;
+            }
+            .time {
+                font-size: 22rpx;
+                color: #4A4A4A;
+            }
+        }
+        .type {
+            }
+        .des {
+            }
+        .dis {
+            padding-top: 10rpx;
+            border-top: 1px solid #E4E7F0;
+        }
+    }
+}
+.margin-10 {
+    margin-top: 10rpx;
+}
+</style>
